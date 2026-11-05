@@ -1,5 +1,3 @@
-// components/EmptyState.tsx
-
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, fontSize, spacing } from '../constants/theme';

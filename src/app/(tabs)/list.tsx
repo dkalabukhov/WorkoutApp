@@ -1,15 +1,15 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,6 +20,7 @@ import { plural } from '../../../utils/plural';
 
 export default function ListScreen() {
   const db = useSQLiteContext();
+  const router = useRouter();
   const [workouts, setWorkouts] = useState<SavedWorkout[]>([]);
 
   const loadData = useCallback(async () => {
@@ -69,9 +70,12 @@ export default function ListScreen() {
     const totalExercises = item.exercises.length;
 
     return (
-      <View style={styles.card}>
+      <Pressable
+        onPress={() => router.push(`/workout/${item.id}`)}
+        style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+      >
         <View style={styles.cardHeader}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.date}>{formatDate(item.date)}</Text>
             <Text style={styles.subtitle}>
               {totalExercises}{' '}
@@ -92,6 +96,7 @@ export default function ListScreen() {
           >
             <Ionicons name='trash-outline' size={20} color={colors.textDim} />
           </Pressable>
+          <Ionicons name='chevron-forward' size={20} color={colors.textDim} />
         </View>
 
         {totalExercises === 0 ? (
@@ -111,7 +116,7 @@ export default function ListScreen() {
             ))}
           </View>
         )}
-      </View>
+      </Pressable>
     );
   };
 
@@ -163,21 +168,12 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  date: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
-    marginTop: 2,
-  },
-  deleteBtn: {
-    padding: spacing.xs,
-  },
+  date: { color: colors.text, fontSize: fontSize.lg, fontWeight: '600' },
+  subtitle: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 2 },
+  deleteBtn: { padding: spacing.xs },
   exercisesList: {
     gap: spacing.sm,
     borderTopWidth: 1,
@@ -189,16 +185,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  exerciseIndex: {
-    color: colors.textDim,
-    fontSize: fontSize.sm,
-    width: 20,
-  },
-  exerciseName: {
-    flex: 1,
-    color: colors.text,
-    fontSize: fontSize.sm,
-  },
+  exerciseIndex: { color: colors.textDim, fontSize: fontSize.sm, width: 20 },
+  exerciseName: { flex: 1, color: colors.text, fontSize: fontSize.sm },
   exerciseDetails: {
     color: colors.accent,
     fontSize: fontSize.sm,
@@ -214,11 +202,7 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
     gap: spacing.md,
   },
-  emptyTitle: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-  },
+  emptyTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: '600' },
   emptyDesc: {
     color: colors.textMuted,
     fontSize: fontSize.sm,

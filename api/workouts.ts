@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import type { DraftExercise } from '../types/exercise';
+import type { DraftExercise, SavedExercise } from '../types/exercise';
 import type { SavedWorkout } from '../types/workout';
 
 export async function saveWorkout(
@@ -55,7 +55,6 @@ export async function listWorkouts(
         exercises: [],
       });
     }
-
     if (row.exercise_id !== null) {
       workoutsMap.get(row.workout_id)!.exercises.push({
         id: row.exercise_id,
@@ -68,6 +67,47 @@ export async function listWorkouts(
   }
 
   return Array.from(workoutsMap.values());
+}
+
+export async function getWorkoutById(
+  db: SQLiteDatabase,
+  id: number,
+): Promise<SavedWorkout | null> {
+  const workout = await db.getFirstAsync<{ id: number; date: string }>(
+    'SELECT id, date FROM workouts WHERE id = ?',
+    [id],
+  );
+  if (!workout) return null;
+
+  const exercises = await db.getAllAsync<SavedExercise>(
+    'SELECT id, name, sets, reps, weight FROM exercises WHERE workout_id = ? ORDER BY id',
+    [id],
+  );
+
+  return { id: workout.id, date: workout.date, exercises };
+}
+
+export async function updateWorkout(
+  db: SQLiteDatabase,
+  id: number,
+  exercises: DraftExercise[],
+  date: string,
+): Promise<void> {
+  if (exercises.length === 0) {
+    throw new Error('Нельзя сохранить пустую тренировку');
+  }
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE workouts SET date = ? WHERE id = ?', [date, id]);
+    await db.runAsync('DELETE FROM exercises WHERE workout_id = ?', [id]);
+
+    for (const ex of exercises) {
+      await db.runAsync(
+        'INSERT INTO exercises (workout_id, name, sets, reps, weight) VALUES (?, ?, ?, ?, ?)',
+        [id, ex.name.trim(), ex.sets, ex.reps, ex.weight],
+      );
+    }
+  });
 }
 
 export async function deleteWorkout(

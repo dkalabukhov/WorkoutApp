@@ -34,6 +34,12 @@ export default function RootLayout() {
       >
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name='(tabs)' />
+          <Stack.Screen
+            name='workout/[id]'
+            options={{
+              presentation: 'card',
+            }}
+          />
         </Stack>
       </SQLiteProvider>
     </Suspense>

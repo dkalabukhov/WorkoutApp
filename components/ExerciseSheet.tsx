@@ -1,5 +1,3 @@
-// components/ExerciseSheet.tsx
-
 import { useReducer } from 'react';
 import {
     Dimensions,
@@ -32,9 +30,6 @@ import Stepper from './Stepper';
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const DISMISS_THRESHOLD = 120;
 
-// ---------------------------------------------------------------
-// Состояние формы
-// ---------------------------------------------------------------
 type FormState = {
   name: string;
   sets: number;
@@ -93,9 +88,6 @@ function stateFromInitial(initial?: DraftExercise): FormState {
   };
 }
 
-// ---------------------------------------------------------------
-// Компонент
-// ---------------------------------------------------------------
 type Props = {
   visible: boolean;
   initial?: DraftExercise;
@@ -123,23 +115,18 @@ export default function ExerciseSheet({
     dispatch({ type: 'RESET', payload: stateFromInitial(initial) });
   }
 
-  // ---------- Свайп вниз на usePanGesture (v3) ----------
   const translateY = useSharedValue(0);
 
   const panGesture = usePanGesture({
-    // Аналог activeOffsetY из старого API — жест активируется только
-    // после вертикального смещения в пределах [-10, 10]
     activeOffsetY: [-10, 10],
     onUpdate: (event) => {
       if (event.translationY > 0) {
         translateY.value = event.translationY;
       }
     },
-    // В v3 onEnd переименован в onDeactivate
     onDeactivate: (event) => {
       if (event.translationY > DISMISS_THRESHOLD) {
         translateY.value = withTiming(SCREEN_HEIGHT, { duration: 200 }, () => {
-          // runOnJS всё ещё работает из reanimated
           runOnJS(onClose)();
           translateY.value = 0;
         });
@@ -153,7 +140,6 @@ export default function ExerciseSheet({
     transform: [{ translateY: translateY.value }],
   }));
 
-  // ---------- Отправка ----------
   const canSubmit = state.name.trim().length > 0;
 
   const handleSubmit = () => {
