@@ -1,9 +1,21 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+    Alert,
+    FlatList,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { saveWorkout } from '../../../api/workouts';
 import EmptyState from '../../../components/EmptyState';
 import ExerciseCard from '../../../components/ExerciseCard';
 import ExerciseSheet from '../../../components/ExerciseSheet';
@@ -12,17 +24,59 @@ import type { DraftExercise, ExerciseFormData } from '../../../types/exercise';
 import { plural } from '../../../utils/plural';
 
 export default function AddWorkoutScreen() {
+  const db = useSQLiteContext();
+  const router = useRouter();
+
   const [draft, setDraft] = useState<DraftExercise[]>([]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+
+  const onChangeDate = (event: any, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setDatePickerVisible(false);
+    }
+    if (event.type === 'set' && date) {
+      setSelectedDate(date);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
 
   const today = new Date();
-  const dateLabel = today.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-  });
-  const weekday = today.toLocaleDateString('ru-RU', { weekday: 'long' });
-  const weekdayCapitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  today.setHours(0, 0, 0, 0);
+  const sel = new Date(selectedDate);
+  sel.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((sel.getTime() - today.getTime()) / 86400000);
+
+  let dateLabel: string;
+  if (diffDays === 0) {
+    dateLabel = `Сегодня, ${selectedDate.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+    })}`;
+  } else if (diffDays === -1) {
+    dateLabel = `Вчера, ${selectedDate.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+    })}`;
+  } else if (diffDays === 1) {
+    dateLabel = `Завтра, ${selectedDate.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+    })}`;
+  } else {
+    dateLabel = selectedDate.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
+  const weekday = selectedDate
+    .toLocaleDateString('ru-RU', { weekday: 'long' })
+    .replace(/^./, (c) => c.toUpperCase());
 
   const openAdd = () => {
     setEditingId(null);
@@ -57,16 +111,54 @@ export default function AddWorkoutScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  const handleSave = async () => {
+    if (draft.length === 0 || saving) return;
+    setSaving(true);
+    try {
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+
+      await saveWorkout(db, draft, dateStr);
+      const rows = await db.getAllAsync(
+        'SELECT * FROM workouts ORDER BY id DESC LIMIT 1',
+      );
+      console.log('Последняя тренировка в БД:', rows);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setDraft([]);
+      setSelectedDate(new Date());
+      router.push('/list');
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        'Ошибка',
+        'Не удалось сохранить тренировку. Попробуйте ещё раз.',
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isEmpty = draft.length === 0;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text style={styles.headerDate}>
-          {weekdayCapitalized}, {dateLabel}
-        </Text>
+        <Pressable
+          onPress={() => setDatePickerVisible(true)}
+          style={({ pressed }) => [styles.dateBtn, pressed && { opacity: 0.6 }]}
+        >
+          <Text style={styles.headerDate}>{dateLabel}</Text>
+          <Ionicons name='chevron-down' size={20} color={colors.accent} />
+        </Pressable>
         <Text style={styles.headerSub}>
-          {draft.length > 0
-            ? `Тренировка · ${draft.length} ${plural(draft.length, ['упражнение', 'упражнения', 'упражнений'])}`
-            : ''}
+          {weekday} ·{' '}
+          {isEmpty
+            ? 'пусто'
+            : `${draft.length} ${plural(draft.length, ['упражнение', 'упражнения', 'упражнений'])}`}
         </Text>
       </View>
 
@@ -99,16 +191,26 @@ export default function AddWorkoutScreen() {
 
       <View style={styles.bottomBar}>
         <Pressable
-          disabled
+          onPress={handleSave}
+          disabled={isEmpty || saving}
           style={({ pressed }) => [
             styles.saveBtn,
-            styles.saveBtnDisabled,
+            (isEmpty || saving) && styles.saveBtnDisabled,
             pressed && { opacity: 0.85 },
           ]}
         >
-          <Ionicons name='checkmark' size={22} color={colors.textDim} />
-          <Text style={[styles.saveBtnText, { color: colors.textDim }]}>
-            Сохранить тренировку
+          <Ionicons
+            name={saving ? 'hourglass-outline' : 'checkmark'}
+            size={22}
+            color={isEmpty || saving ? colors.textDim : colors.bg}
+          />
+          <Text
+            style={[
+              styles.saveBtnText,
+              (isEmpty || saving) && { color: colors.textDim },
+            ]}
+          >
+            {saving ? 'Сохранение…' : 'Сохранить тренировку'}
           </Text>
         </Pressable>
       </View>
@@ -124,6 +226,16 @@ export default function AddWorkoutScreen() {
         }}
         onSubmit={upsertExercise}
       />
+
+      {datePickerVisible && (
+        <DateTimePicker
+          value={selectedDate}
+          mode='date'
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onChangeDate}
+          themeVariant='dark'
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -135,7 +247,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
   },
-  headerDate: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '700' },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  headerDate: {
+    color: colors.text,
+    fontSize: fontSize.xxl,
+    fontWeight: '700',
+  },
   headerSub: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
