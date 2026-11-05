@@ -1,41 +1,20 @@
-import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function TestScreen() {
-  const db = useSQLiteContext();
-  const [tables, setTables] = useState<string[]>([]);
-
-  useEffect(() => {
-    (async () => {
-      const result = await db.getAllAsync<{ name: string }>(
-        "SELECT name FROM sqlite_master WHERE type='table'",
-      );
-      setTables(result.map((r) => r.name));
-    })();
-  }, []);
-
+export default function AddWorkoutScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>✅ SQLite подключён</Text>
-      <Text style={styles.text}>Таблицы: {tables.join(', ')}</Text>
-    </View>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <View style={styles.center}>
+        <Text style={styles.title}>Добавить тренировку</Text>
+        <Text style={styles.subtitle}>Здесь будет главный экран</Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F0F12',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  title: {
-    color: '#C6FF3D',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  text: { color: '#FFFFFF', fontSize: 14, textAlign: 'center' },
+  safe: { flex: 1, backgroundColor: '#0F0F12' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
+  title: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
+  subtitle: { color: '#8E8E96', fontSize: 14 },
 });
