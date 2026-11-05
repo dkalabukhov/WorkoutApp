@@ -18,6 +18,7 @@ async function initDatabase(db: any) {
       name       TEXT    NOT NULL,
       sets       INTEGER NOT NULL,
       reps       INTEGER NOT NULL,
+      weight     REAL,
       FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE CASCADE
     );
   `);
