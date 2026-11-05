@@ -7,9 +7,8 @@ export async function saveWorkout(
   exercises: DraftExercise[],
   date: string,
 ): Promise<number> {
-  if (exercises.length === 0) {
+  if (exercises.length === 0)
     throw new Error('Нельзя сохранить пустую тренировку');
-  }
 
   const result = await db.runAsync('INSERT INTO workouts (date) VALUES (?)', [
     date,
@@ -17,10 +16,11 @@ export async function saveWorkout(
   const workoutId = result.lastInsertRowId;
 
   await db.withTransactionAsync(async () => {
-    for (const ex of exercises) {
+    for (let i = 0; i < exercises.length; i++) {
+      const ex = exercises[i];
       await db.runAsync(
-        'INSERT INTO exercises (workout_id, name, sets, reps, weight) VALUES (?, ?, ?, ?, ?)',
-        [workoutId, ex.name.trim(), ex.sets, ex.reps, ex.weight],
+        'INSERT INTO exercises (workout_id, name, sets, reps, weight, order_index) VALUES (?, ?, ?, ?, ?, ?)',
+        [workoutId, ex.name.trim(), ex.sets, ex.reps, ex.weight, i],
       );
     }
   });
@@ -42,7 +42,7 @@ export async function listWorkouts(
       e.weight
     FROM workouts w
     LEFT JOIN exercises e ON w.id = e.workout_id
-    ORDER BY w.date DESC, w.id DESC
+    ORDER BY w.date DESC, w.id DESC, e.order_index ASC
   `);
 
   const workoutsMap = new Map<number, SavedWorkout>();
@@ -80,7 +80,7 @@ export async function getWorkoutById(
   if (!workout) return null;
 
   const exercises = await db.getAllAsync<SavedExercise>(
-    'SELECT id, name, sets, reps, weight FROM exercises WHERE workout_id = ? ORDER BY id',
+    'SELECT id, name, sets, reps, weight FROM exercises WHERE workout_id = ? ORDER BY order_index ASC',
     [id],
   );
 
@@ -93,18 +93,18 @@ export async function updateWorkout(
   exercises: DraftExercise[],
   date: string,
 ): Promise<void> {
-  if (exercises.length === 0) {
+  if (exercises.length === 0)
     throw new Error('Нельзя сохранить пустую тренировку');
-  }
 
   await db.withTransactionAsync(async () => {
     await db.runAsync('UPDATE workouts SET date = ? WHERE id = ?', [date, id]);
     await db.runAsync('DELETE FROM exercises WHERE workout_id = ?', [id]);
 
-    for (const ex of exercises) {
+    for (let i = 0; i < exercises.length; i++) {
+      const ex = exercises[i];
       await db.runAsync(
-        'INSERT INTO exercises (workout_id, name, sets, reps, weight) VALUES (?, ?, ?, ?, ?)',
-        [id, ex.name.trim(), ex.sets, ex.reps, ex.weight],
+        'INSERT INTO exercises (workout_id, name, sets, reps, weight, order_index) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, ex.name.trim(), ex.sets, ex.reps, ex.weight, i],
       );
     }
   });
