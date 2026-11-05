@@ -1,17 +1,21 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BG = '#0F0F12';
-const CARD = '#1C1C22';
-const CARD_SOFT = '#26262E';
-const BORDER = '#2A2A33';
-const TEXT = '#FFFFFF';
-const TEXT_MUTED = '#8E8E96';
-const TEXT_DIM = '#6B6B75';
-const ACCENT = '#C6FF3D';
+import EmptyState from '../../../components/EmptyState';
+import ExerciseCard from '../../../components/ExerciseCard';
+import ExerciseSheet from '../../../components/ExerciseSheet';
+import { colors, fontSize, radius, spacing } from '../../../constants/theme';
+import type { DraftExercise, ExerciseFormData } from '../../../types/exercise';
+import { plural } from '../../../utils/plural';
 
 export default function AddWorkoutScreen() {
+  const [draft, setDraft] = useState<DraftExercise[]>([]);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   const today = new Date();
   const dateLabel = today.toLocaleDateString('ru-RU', {
     day: 'numeric',
@@ -20,28 +24,78 @@ export default function AddWorkoutScreen() {
   const weekday = today.toLocaleDateString('ru-RU', { weekday: 'long' });
   const weekdayCapitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
 
+  const openAdd = () => {
+    setEditingId(null);
+    setSheetVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const openEdit = (ex: DraftExercise) => {
+    setEditingId(ex.tempId);
+    setSheetVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const removeExercise = (tempId: string) => {
+    setDraft((prev) => prev.filter((e) => e.tempId !== tempId));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  const upsertExercise = (data: ExerciseFormData) => {
+    if (editingId) {
+      setDraft((prev) =>
+        prev.map((e) => (e.tempId === editingId ? { ...e, ...data } : e)),
+      );
+    } else {
+      setDraft((prev) => [
+        ...prev,
+        { ...data, tempId: `${Date.now()}-${Math.random()}` },
+      ]);
+    }
+    setSheetVisible(false);
+    setEditingId(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.headerDate}>
           {weekdayCapitalized}, {dateLabel}
         </Text>
-        <Text style={styles.headerSub}>Тренировка · пусто</Text>
+        <Text style={styles.headerSub}>
+          {draft.length > 0
+            ? `Тренировка · ${draft.length} ${plural(draft.length, ['упражнение', 'упражнения', 'упражнений'])}`
+            : ''}
+        </Text>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={draft}
+        keyExtractor={(item) => item.tempId}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-      >
-        <EmptyState />
-
-        <Pressable
-          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
-        >
-          <Ionicons name='add' size={22} color={ACCENT} />
-          <Text style={styles.addBtnText}>Добавить упражнение</Text>
-        </Pressable>
-      </ScrollView>
+        ListEmptyComponent={<EmptyState />}
+        renderItem={({ item }) => (
+          <ExerciseCard
+            exercise={item}
+            onEdit={() => openEdit(item)}
+            onRemove={() => removeExercise(item.tempId)}
+          />
+        )}
+        ListFooterComponent={
+          <Pressable
+            onPress={openAdd}
+            style={({ pressed }) => [
+              styles.addBtn,
+              pressed && { opacity: 0.6 },
+            ]}
+          >
+            <Ionicons name='add' size={22} color={colors.accent} />
+            <Text style={styles.addBtnText}>Добавить упражнение</Text>
+          </Pressable>
+        }
+      />
 
       <View style={styles.bottomBar}>
         <Pressable
@@ -52,108 +106,78 @@ export default function AddWorkoutScreen() {
             pressed && { opacity: 0.85 },
           ]}
         >
-          <Ionicons name='checkmark' size={22} color={TEXT_DIM} />
-          <Text style={[styles.saveBtnText, { color: TEXT_DIM }]}>
+          <Ionicons name='checkmark' size={22} color={colors.textDim} />
+          <Text style={[styles.saveBtnText, { color: colors.textDim }]}>
             Сохранить тренировку
           </Text>
         </Pressable>
       </View>
+
+      <ExerciseSheet
+        visible={sheetVisible}
+        initial={
+          editingId ? draft.find((e) => e.tempId === editingId) : undefined
+        }
+        onClose={() => {
+          setSheetVisible(false);
+          setEditingId(null);
+        }}
+        onSubmit={upsertExercise}
+      />
     </SafeAreaView>
   );
 }
 
-function EmptyState() {
-  return (
-    <View style={styles.empty}>
-      <Ionicons name='barbell-outline' size={56} color='#3A3A44' />
-      <Text style={styles.emptyTitle}>Начни тренировку</Text>
-      <Text style={styles.emptyText}>
-        Добавь первое упражнение —{'\n'}оно появится здесь
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
   },
-  headerDate: {
-    color: TEXT,
-    fontSize: 26,
-    fontWeight: '700',
-  },
+  headerDate: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '700' },
   headerSub: {
-    color: TEXT_MUTED,
-    fontSize: 14,
-    marginTop: 4,
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    marginTop: spacing.xs,
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
     paddingBottom: 120,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    gap: 12,
-  },
-  emptyTitle: {
-    color: TEXT,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  emptyText: {
-    color: TEXT_MUTED,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
+    gap: spacing.md,
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 16,
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
     borderWidth: 1.5,
-    borderColor: BORDER,
+    borderColor: colors.border,
     borderStyle: 'dashed',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
-  addBtnText: {
-    color: ACCENT,
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  addBtnText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
   bottomBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 20,
-    backgroundColor: BG,
+    padding: spacing.xl,
+    backgroundColor: colors.bg,
     borderTopWidth: 1,
-    borderTopColor: BORDER,
+    borderTopColor: colors.border,
   },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: ACCENT,
+    gap: spacing.sm,
+    backgroundColor: colors.accent,
     paddingVertical: 18,
-    borderRadius: 28,
+    borderRadius: radius.pill,
   },
-  saveBtnDisabled: {
-    backgroundColor: CARD_SOFT,
-  },
-  saveBtnText: {
-    color: BG,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  saveBtnDisabled: { backgroundColor: colors.cardSoft },
+  saveBtnText: { color: colors.bg, fontSize: fontSize.md, fontWeight: '700' },
 });
