@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -67,13 +67,13 @@ export default function CalendarScreen() {
             marked[date] = {
               customStyles: {
                 container: {
-                  backgroundColor: colors.cardSoft, // Фон кружка (например, цвет карточки)
-                  borderRadius: 16, // Делает квадрат круглым
+                  backgroundColor: colors.cardSoft,
+                  borderRadius: 16,
                   justifyContent: 'center',
                   alignItems: 'center',
                 },
                 text: {
-                  color: colors.accent, // Цвет цифры (лаймовый)
+                  color: colors.accent,
                   fontWeight: 'bold',
                 },
               },
@@ -90,6 +90,13 @@ export default function CalendarScreen() {
       loadDates();
     }, [db]),
   );
+
+  const handleDayPress = (day: { dateString: string }) => {
+    router.navigate({
+      pathname: '/list',
+      params: { date: day.dateString },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -121,9 +128,7 @@ export default function CalendarScreen() {
           selectedDayBackgroundColor: colors.accent,
           selectedDayTextColor: colors.bg,
         }}
-        onDayPress={(day) => {
-          console.log('Выбран день:', day.dateString);
-        }}
+        onDayPress={handleDayPress}
       />
     </SafeAreaView>
   );

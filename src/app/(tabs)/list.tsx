@@ -1,6 +1,6 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import {
@@ -21,16 +21,24 @@ import { plural } from '../../../utils/plural';
 export default function ListScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
+
+  const { date: filterDate } = useLocalSearchParams<{ date?: string }>();
+
   const [workouts, setWorkouts] = useState<SavedWorkout[]>([]);
 
   const loadData = useCallback(async () => {
     try {
       const data = await listWorkouts(db);
-      setWorkouts(data);
+
+      const filteredData = filterDate
+        ? data.filter((w) => w.date === filterDate)
+        : data;
+
+      setWorkouts(filteredData);
     } catch (e) {
       console.error('Ошибка загрузки тренировок:', e);
     }
-  }, [db]);
+  }, [db, filterDate]);
 
   useFocusEffect(
     useCallback(() => {
@@ -123,7 +131,24 @@ export default function ListScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text style={styles.title}>История тренировок</Text>
+        <Text style={styles.title}>
+          {filterDate
+            ? `Тренировки за ${formatDate(filterDate)}`
+            : 'История тренировок'}
+        </Text>
+
+        {/* Кнопка сброса фильтра, если он активен */}
+        {filterDate && (
+          <Pressable
+            onPress={() => router.setParams({ date: undefined })}
+            style={({ pressed }) => [
+              styles.clearFilterBtn,
+              pressed && { opacity: 0.6 },
+            ]}
+          >
+            <Text style={styles.clearFilterText}>Показать все</Text>
+          </Pressable>
+        )}
       </View>
 
       <FlatList
@@ -135,9 +160,11 @@ export default function ListScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name='calendar-outline' size={56} color={colors.border} />
-            <Text style={styles.emptyTitle}>Пока нет тренировок</Text>
+            <Text style={styles.emptyTitle}>Нет тренировок</Text>
             <Text style={styles.emptyDesc}>
-              Сохраните первую тренировку на вкладке «Добавить»
+              {filterDate
+                ? 'В этот день тренировок нет'
+                : 'Сохраните первую тренировку на вкладке «Добавить»'}
             </Text>
           </View>
         }
@@ -154,6 +181,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   title: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '700' },
+  clearFilterBtn: {
+    marginTop: spacing.xs,
+    alignSelf: 'flex-start',
+  },
+  clearFilterText: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
   listContent: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xl,
