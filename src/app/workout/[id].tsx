@@ -74,6 +74,7 @@ export default function EditWorkoutScreen() {
       title='Редактирование'
       submitLabel='Сохранить изменения'
       onSubmit={handleSubmit}
+      onCancel={() => router.back()}
     />
   );
 }

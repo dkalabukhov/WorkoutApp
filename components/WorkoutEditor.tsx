@@ -1,6 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
+import { useNavigation, usePreventRemove } from 'expo-router'; // <-- Важно
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import {
@@ -28,6 +29,7 @@ type Props = {
   title?: string;
   submitLabel?: string;
   onSubmit: (exercises: DraftExercise[], dateStr: string) => Promise<void>;
+  onCancel?: () => void;
   resetKey?: number;
   bottomAction?: ReactNode;
 };
@@ -38,20 +40,65 @@ export default function WorkoutEditor({
   title = 'Тренировка',
   submitLabel = 'Сохранить тренировку',
   onSubmit,
+  onCancel,
   resetKey = 0,
   bottomAction,
 }: Props) {
+  const navigation = useNavigation();
   const [draft, setDraft] = useState<DraftExercise[]>(initialExercises);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState(initialDate ?? new Date());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [allowLeave, setAllowLeave] = useState(false);
 
   useEffect(() => {
     setDraft(initialExercises);
     setSelectedDate(initialDate ?? new Date());
   }, [resetKey]);
+
+  useEffect(() => {
+    const initialJson = JSON.stringify(initialExercises);
+    const currentJson = JSON.stringify(draft);
+    const datesEqual =
+      (initialDate ?? new Date()).toDateString() ===
+      selectedDate.toDateString();
+    setHasChanges(initialJson !== currentJson || !datesEqual);
+  }, [draft, selectedDate, initialExercises, initialDate]);
+
+  usePreventRemove(hasChanges && !allowLeave, ({ data }) => {
+    Alert.alert('Выйти без сохранения?', 'Все изменения будут потеряны.', [
+      { text: 'Остаться', style: 'cancel' },
+      {
+        text: 'Выйти',
+        style: 'destructive',
+        onPress: () => {
+          setAllowLeave(true);
+          navigation.dispatch(data.action);
+        },
+      },
+    ]);
+  });
+
+  const handleCancel = () => {
+    if (!hasChanges) {
+      onCancel?.();
+      return;
+    }
+    Alert.alert('Выйти без сохранения?', 'Все изменения будут потеряны.', [
+      { text: 'Остаться', style: 'cancel' },
+      {
+        text: 'Выйти',
+        style: 'destructive',
+        onPress: () => {
+          setAllowLeave(true);
+          onCancel?.();
+        },
+      },
+    ]);
+  };
 
   const onChangeDate = (event: any, date?: Date) => {
     if (Platform.OS === 'android') setDatePickerVisible(false);
@@ -155,7 +202,21 @@ export default function WorkoutEditor({
         keyboardVerticalOffset={0}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.headerTop}>
+            <Text style={styles.title}>{title}</Text>
+            {onCancel && (
+              <Pressable
+                onPress={handleCancel}
+                hitSlop={12}
+                style={({ pressed }) => [
+                  styles.cancelBtn,
+                  pressed && { opacity: 0.5 },
+                ]}
+              >
+                <Ionicons name='close' size={24} color={colors.textMuted} />
+              </Pressable>
+            )}
+          </View>
           <Pressable
             onPress={() => setDatePickerVisible(true)}
             style={({ pressed }) => [
@@ -261,6 +322,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   title: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
@@ -268,6 +334,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: spacing.xs,
+  },
+  cancelBtn: {
+    padding: spacing.xs,
   },
   dateBtn: {
     flexDirection: 'row',
