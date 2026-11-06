@@ -1,16 +1,17 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,6 +29,7 @@ type Props = {
   submitLabel?: string;
   onSubmit: (exercises: DraftExercise[], dateStr: string) => Promise<void>;
   resetKey?: number;
+  bottomAction?: ReactNode;
 };
 
 export default function WorkoutEditor({
@@ -37,6 +39,7 @@ export default function WorkoutEditor({
   submitLabel = 'Сохранить тренировку',
   onSubmit,
   resetKey = 0,
+  bottomAction,
 }: Props) {
   const [draft, setDraft] = useState<DraftExercise[]>(initialExercises);
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -200,6 +203,7 @@ export default function WorkoutEditor({
       </KeyboardAvoidingView>
 
       <View style={styles.bottomBar}>
+        {bottomAction}
         <Pressable
           onPress={handleSave}
           disabled={isEmpty || saving}

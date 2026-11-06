@@ -21,19 +21,15 @@ import { plural } from '../../../utils/plural';
 export default function ListScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
-
   const { date: filterDate } = useLocalSearchParams<{ date?: string }>();
-
   const [workouts, setWorkouts] = useState<SavedWorkout[]>([]);
 
   const loadData = useCallback(async () => {
     try {
       const data = await listWorkouts(db);
-
       const filteredData = filterDate
         ? data.filter((w) => w.date === filterDate)
         : data;
-
       setWorkouts(filteredData);
     } catch (e) {
       console.error('Ошибка загрузки тренировок:', e);
@@ -65,6 +61,24 @@ export default function ListScreen() {
     ]);
   };
 
+  const handleRepeat = (workout: SavedWorkout) => {
+    const exercisesJson = JSON.stringify(
+      workout.exercises.map((ex) => ({
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        weight: ex.weight,
+      })),
+    );
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    router.push({
+      pathname: '/',
+      params: { repeat: exercisesJson },
+    });
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('ru-RU', {
@@ -79,7 +93,9 @@ export default function ListScreen() {
 
     return (
       <Pressable
-        onPress={() => router.push(`/workout/${item.id}`)}
+        onPress={() =>
+          router.push({ pathname: '/workout/[id]', params: { id: item.id } })
+        }
         style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
       >
         <View style={styles.cardHeader}>
@@ -95,9 +111,19 @@ export default function ListScreen() {
             </Text>
           </View>
           <Pressable
+            onPress={() => handleRepeat(item)}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              pressed && { opacity: 0.5 },
+            ]}
+            hitSlop={12}
+          >
+            <Ionicons name='repeat' size={20} color={colors.accent} />
+          </Pressable>
+          <Pressable
             onPress={() => handleDelete(item.id)}
             style={({ pressed }) => [
-              styles.deleteBtn,
+              styles.iconBtn,
               pressed && { opacity: 0.5 },
             ]}
             hitSlop={12}
@@ -136,8 +162,6 @@ export default function ListScreen() {
             ? `Тренировки за ${formatDate(filterDate)}`
             : 'История тренировок'}
         </Text>
-
-        {/* Кнопка сброса фильтра, если он активен */}
         {filterDate && (
           <Pressable
             onPress={() => router.setParams({ date: undefined })}
@@ -163,7 +187,7 @@ export default function ListScreen() {
             <Text style={styles.emptyTitle}>Нет тренировок</Text>
             <Text style={styles.emptyDesc}>
               {filterDate
-                ? 'В этот день тренировок нет'
+                ? 'В этот день тренировок нет.'
                 : 'Сохраните первую тренировку на вкладке «Добавить»'}
             </Text>
           </View>
@@ -209,7 +233,7 @@ const styles = StyleSheet.create({
   },
   date: { color: colors.text, fontSize: fontSize.lg, fontWeight: '600' },
   subtitle: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 2 },
-  deleteBtn: { padding: spacing.xs },
+  iconBtn: { padding: spacing.xs },
   exercisesList: {
     gap: spacing.sm,
     borderTopWidth: 1,
