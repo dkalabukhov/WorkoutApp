@@ -110,6 +110,13 @@ export async function updateWorkout(
   });
 }
 
+export async function getWorkoutDates(db: SQLiteDatabase): Promise<string[]> {
+  const rows = await db.getAllAsync<{ date: string }>(
+    'SELECT DISTINCT date FROM workouts ORDER BY date DESC',
+  );
+  return rows.map((row) => row.date);
+}
+
 export async function deleteWorkout(
   db: SQLiteDatabase,
   id: number,
