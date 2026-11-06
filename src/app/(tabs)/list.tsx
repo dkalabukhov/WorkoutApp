@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { deleteWorkout, listWorkouts } from '../../../api/workouts';
+import EmptyState from '../../../components/EmptyState';
 import { colors, fontSize, radius, spacing } from '../../../constants/theme';
 import type { SavedWorkout } from '../../../types/workout';
 import { plural } from '../../../utils/plural';
@@ -182,15 +183,11 @@ export default function ListScreen() {
         showsVerticalScrollIndicator={false}
         renderItem={renderItem}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name='calendar-outline' size={56} color={colors.border} />
-            <Text style={styles.emptyTitle}>Нет тренировок</Text>
-            <Text style={styles.emptyDesc}>
-              {filterDate
-                ? 'В этот день тренировок нет.'
-                : 'Сохраните первую тренировку на вкладке «Добавить»'}
-            </Text>
-          </View>
+          <EmptyState
+            iconName='calendar-outline'
+            title='Пока нет тренировок'
+            description='Сохраните первую тренировку на вкладке «Добавить»'
+          />
         }
       />
     </SafeAreaView>

@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
-import { useNavigation, usePreventRemove } from 'expo-router'; // <-- Важно
+import { useNavigation, usePreventRemove } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import {
@@ -240,7 +240,13 @@ export default function WorkoutEditor({
           keyExtractor={(item) => item.tempId}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<EmptyState />}
+          ListEmptyComponent={
+            <EmptyState
+              iconName='barbell-outline'
+              title='Начни тренировку'
+              description='Добавь первое упражнение — оно появится здесь'
+            />
+          }
           renderItem={({ item }) => (
             <ExerciseCard
               exercise={item}
